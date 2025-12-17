@@ -36,6 +36,7 @@ type Raft struct {
 
 // return currentTerm and whether this server
 // believes it is the leader.
+// 返回当前任期和领导者状态
 func (rf *Raft) GetState() (int, bool) {
 
 	var term int
@@ -51,6 +52,7 @@ func (rf *Raft) GetState() (int, bool) {
 // second argument to persister.Save().
 // after you've implemented snapshots, pass the current snapshot
 // (or nil if there's not yet a snapshot).
+// 将持久化状态保存到存储中
 func (rf *Raft) persist() {
 	// Your code here (3C).
 	// Example:
@@ -64,6 +66,7 @@ func (rf *Raft) persist() {
 
 
 // restore previously persisted state.
+// 恢复之前保存的状态
 func (rf *Raft) readPersist(data []byte) {
 	if data == nil || len(data) < 1 { // bootstrap without any state?
 		return
@@ -84,6 +87,7 @@ func (rf *Raft) readPersist(data []byte) {
 }
 
 // how many bytes in Raft's persisted log?
+// 返回持久化日志的大小
 func (rf *Raft) PersistBytes() int {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
@@ -95,6 +99,7 @@ func (rf *Raft) PersistBytes() int {
 // all info up to and including index. this means the
 // service no longer needs the log through (and including)
 // that index. Raft should now trim its log as much as possible.
+// 根据快照索引修剪日志
 func (rf *Raft) Snapshot(index int, snapshot []byte) {
 	// Your code here (3D).
 
@@ -105,15 +110,25 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 // field names must start with capital letters!
 type RequestVoteArgs struct {
 	// Your data here (3A, 3B).
+	// 目前 参考 figure2 做实现，可能理解有误
+	Term        int  // candidate's term
+	CandidateId int  // 发起投票的candidate的ID
+	LastLogIndex int // candidate的最高日志条目索引
+	LastLogTerm  int // candidate的最高日志条目的任期号
 }
 
 // example RequestVote RPC reply structure.
 // field names must start with capital letters!
 type RequestVoteReply struct {
 	// Your data here (3A).
+	// 目前 参考 figure2 做实现，可能理解有误
+	Term        int  // currentTerm，用于candidate更新自己term
+	VoteGranted bool // true表示candidate获得投票
 }
 
 // example RequestVote RPC handler.
+// 处理候选者发来的投票请求
+// TODO 目前没有处理思路
 func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	// Your code here (3A, 3B).
 }
@@ -145,6 +160,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 // capitalized all field names in structs passed over RPC, and
 // that the caller passes the address of the reply struct with &, not
 // the struct itself.
+// 向其它服务器发送投票请求
 func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *RequestVoteReply) bool {
 	ok := rf.peers[server].Call("Raft.RequestVote", args, reply)
 	return ok
@@ -163,6 +179,7 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 // if it's ever committed. the second return value is the current
 // term. the third return value is true if this server believes it is
 // the leader.
+//  启动对新命令的共识(仅限领导者) - 客户端接口
 func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	index := -1
 	term := -1
@@ -183,25 +200,30 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 // up CPU time, perhaps causing later tests to fail and generating
 // confusing debug output. any goroutine with a long-running loop
 // should call killed() to check whether it should stop.
+// 关闭服务器 - 客户端接口
 func (rf *Raft) Kill() {
 	atomic.StoreInt32(&rf.dead, 1)
 	// Your code here, if desired.
 }
 
+// 检查服务器是否已关闭 - 客户端接口
 func (rf *Raft) killed() bool {
 	z := atomic.LoadInt32(&rf.dead)
 	return z == 1
 }
 
+// 定期检查选举超时 - 内部操作 
 func (rf *Raft) ticker() {
 	for rf.killed() == false {
 
 		// Your code here (3A)
 		// Check if a leader election should be started.
+		// TODO electionTicker 需要去思考 什么情况 要发起选举
 
 
 		// pause for a random amount of time between 50 and 350
 		// milliseconds.
+		
 		ms := 50 + (rand.Int63() % 300)
 		time.Sleep(time.Duration(ms) * time.Millisecond)
 	}
@@ -216,6 +238,7 @@ func (rf *Raft) ticker() {
 // tester or service expects Raft to send ApplyMsg messages.
 // Make() must return quickly, so it should start goroutines
 // for any long-running work.
+// 构造函数，初始化新的Raft节点 - 内部操作 
 func Make(peers []*labrpc.ClientEnd, me int,
 	persister *tester.Persister, applyCh chan raftapi.ApplyMsg) raftapi.Raft {
 	rf := &Raft{}

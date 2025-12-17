@@ -310,6 +310,12 @@ SOCKNAME=/var/tmp/5840-mr-`id -u`
     sleep 1
   done ) &
 
+( while [ -e $SOCKNAME -a ! -f mr-done ]
+  do
+    maybe_quiet $TIMEOUT2 ../mrworker ../../mrapps/crash.so
+    sleep 1
+  done ) &
+
 while [ -e $SOCKNAME -a ! -f mr-done ]
 do
   maybe_quiet $TIMEOUT2 ../mrworker ../../mrapps/crash.so

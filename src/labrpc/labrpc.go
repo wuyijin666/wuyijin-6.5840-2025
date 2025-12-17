@@ -49,6 +49,14 @@ package labrpc
 //   pass svc to srv.AddService()
 //
 
+// 网络模拟功能
+// 这个 RPC 系统特别之处在于它可以模拟不稳定的网络环境：
+// 消息丢失: 可以随机丢弃请求或回复
+// 延迟: 可以延迟消息传输
+// 重排序: 可以改变消息顺序
+// 断开连接: 可以完全断开特定主机连接
+// 这些特性对于测试分布式系统的鲁棒性非常有用。
+
 import "6.5840/labgob"
 import "bytes"
 import "reflect"
@@ -87,6 +95,8 @@ type ClientEnd struct {
 // send an RPC, wait for the reply.
 // the return value indicates success; false means that
 // no reply was received from the server.
+
+// Call(): 发起 RPC 调用，等待回复
 func (e *ClientEnd) Call(svcMeth string, args interface{}, reply interface{}) bool {
 	req := reqMsg{}
 	req.endname = e.endname
@@ -128,6 +138,7 @@ func (e *ClientEnd) Call(svcMeth string, args interface{}, reply interface{}) bo
 	}
 }
 
+// Network 网络模拟器 ：模拟整个网络环境，管理所有客户端和服务端
 type Network struct {
 	mu             sync.Mutex
 	reliable       bool
@@ -142,7 +153,7 @@ type Network struct {
 	count          int32         // total RPC count, for statistics
 	bytes          int64         // total bytes send, for statistics
 }
-
+// 创建网络实例
 func MakeNetwork() *Network {
 	rn := &Network{}
 	rn.reliable = true
@@ -173,7 +184,7 @@ func MakeNetwork() *Network {
 func (rn *Network) Cleanup() {
 	close(rn.done)
 }
-
+// 设置网络是否可靠
 func (rn *Network) Reliable(yes bool) {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
@@ -385,6 +396,7 @@ func (rn *Network) Connect(endname interface{}, servername interface{}) {
 }
 
 // enable/disable a ClientEnd.
+// 启用/禁用客户端
 func (rn *Network) Enable(endname interface{}, enabled bool) {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
@@ -431,7 +443,7 @@ func (rs *Server) AddService(svc *Service) {
 	defer rs.mu.Unlock()
 	rs.services[svc.name] = svc
 }
-
+// 分发请求到具体服务
 func (rs *Server) dispatch(req reqMsg) replyMsg {
 	rs.mu.Lock()
 

@@ -21,15 +21,15 @@ var useRaftStateMachine bool // to plug in another raft besided raft1
 
 
 type rfsrv struct {
-	ts          *Test
-	me          int
-	applyErr    string // from apply channel readers
-	lastApplied int
-	persister   *tester.Persister
+	ts          *Test   // 测试实例
+	me          int     // 服务器ID
+	applyErr    string  // from apply channel readers // 应用通道读取错误
+	lastApplied int     // 最后应用的日志索引
+	persister   *tester.Persister // 持久化存储
 
 	mu   sync.Mutex
-	raft raftapi.Raft
-	logs map[int]any // copy of each server's committed entries
+	raft raftapi.Raft   // Raft实例
+	logs map[int]any    // copy of each server's committed entries // 已提交条目副本
 }
 
 func newRfsrv(ts *Test, srv int, ends []*labrpc.ClientEnd, persister *tester.Persister, snapshot bool) *rfsrv {
@@ -44,6 +44,7 @@ func newRfsrv(ts *Test, srv int, ends []*labrpc.ClientEnd, persister *tester.Per
 	if !useRaftStateMachine {
 		s.raft = Make(ends, srv, persister, applyCh)
 	}
+	// 支持两种模式 ：普通与快照模式 ？
 	if snapshot {
 		snapshot := persister.ReadSnapshot()
 		if snapshot != nil && len(snapshot) > 0 {
@@ -70,6 +71,7 @@ func (rs *rfsrv) Kill() {
 	if rs.persister != nil {
 		// mimic KV server that saves its persistent state in case it
 		// restarts.
+		// 正确处理 Raft 实例的清理和持久化状态的保存
 		raftlog := rs.persister.ReadRaftState()
 		snapshot := rs.persister.ReadSnapshot()
 		rs.persister.Save(raftlog, snapshot)
@@ -82,12 +84,14 @@ func (rs *rfsrv) GetState() (int, bool) {
 	return rs.raft.GetState()
 }
 
+// 返回底层的 Raft 接口实例
 func (rs *rfsrv) Raft() raftapi.Raft {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
 	return rs.raft
 }
 
+// 提交对已提交日志条目的访问
 func (rs *rfsrv) Logs(i int) (any, bool) {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
@@ -97,6 +101,7 @@ func (rs *rfsrv) Logs(i int) (any, bool) {
 
 // applier reads message from apply ch and checks that they match the log
 // contents
+// 处理普通的ApplyMsg消息
 func (rs *rfsrv) applier(applyCh chan raftapi.ApplyMsg) {
 	for m := range applyCh {
 		if m.CommandValid == false {
@@ -118,6 +123,7 @@ func (rs *rfsrv) applier(applyCh chan raftapi.ApplyMsg) {
 }
 
 // periodically snapshot raft state
+// 处理快照的ApplyMsg消息
 func (rs *rfsrv) applierSnap(applyCh chan raftapi.ApplyMsg) {
 	if rs.raft == nil {
 		return // ???
@@ -172,6 +178,7 @@ func (rs *rfsrv) applierSnap(applyCh chan raftapi.ApplyMsg) {
 }
 
 // returns "" or error string
+// 快照管理
 func (rs *rfsrv) ingestSnap(snapshot []byte, index int) string {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()

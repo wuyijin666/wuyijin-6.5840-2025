@@ -68,6 +68,7 @@ func TestPutConcurrentReliable(t *testing.T) {
 }
 
 // Check if memory used on server is reasonable
+// 检查服务器上使用的内存是否合理
 func TestMemPutManyClientsReliable(t *testing.T) {
 	const (
 		NCLIENT = 100_000
@@ -124,6 +125,14 @@ func TestMemPutManyClientsReliable(t *testing.T) {
 // Test with one client and unreliable network. If Clerk.Put returns
 // ErrMaybe, the Put must have happened, since the test uses only one
 // client.
+
+// 这个测试用于验证在键值存储系统中不可靠网络环境下的行为表现。具体来说：
+// 创建一个启用了不可靠网络模拟的测试KV存储服务
+// 尝试执行可能返回ErrMaybe错误的PUT操作，这需要进行重试
+// 确保重试机制最终能够成功，并返回正确的版本号
+// 验证尽管存在网络问题，存储的值仍然保持一致
+// 确认至少发生了一次重试，并且最终状态是正确的
+// 该测试通过检查操作是否需要重试直到成功或明确失败来模拟网络不可靠性，从而验证系统的容错能力。
 func TestUnreliableNet(t *testing.T) {
 	const NTRY = 100
 

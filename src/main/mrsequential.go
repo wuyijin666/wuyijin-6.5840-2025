@@ -23,6 +23,8 @@ func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
 func main() {
+	// 参数检查与插件加载
+	//  至少需要插件文件和一个输入文件
 	if len(os.Args) < 3 {
 		fmt.Fprintf(os.Stderr, "Usage: mrsequential xxx.so inputfiles...\n")
 		os.Exit(1)
@@ -56,6 +58,8 @@ func main() {
 	// rather than being partitioned into NxM buckets.
 	//
 
+	// 排序中间结果 
+	// 使得相同键的值聚集在一起
 	sort.Sort(ByKey(intermediate))
 
 	oname := "mr-out-0"
@@ -82,7 +86,6 @@ func main() {
 
 		i = j
 	}
-
 	ofile.Close()
 }
 
@@ -91,7 +94,9 @@ func main() {
 func loadPlugin(filename string) (func(string, string) []mr.KeyValue, func(string, []string) string) {
 	p, err := plugin.Open(filename)
 	if err != nil {
-		log.Fatalf("cannot load plugin %v", filename)
+		log.Fatalf("Plugin load error: %v", err)
+		log.Fatalf("cannot load plugin %v ", filename)
+		
 	}
 	xmapf, err := p.Lookup("Map")
 	if err != nil {

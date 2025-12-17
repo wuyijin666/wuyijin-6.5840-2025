@@ -16,6 +16,10 @@ import "strconv"
 // file's complete contents. You should ignore the input file name,
 // and look only at the contents argument. The return value is a slice
 // of key/value pairs.
+
+// 将输入文本分割成单词
+// 为每个单词生成一个键值对，键是单词，值是 "1"
+// 这样做的目的是标记每个单词出现了一次，后续的 Reduce 阶段会统计每个单词的总出现次数
 func Map(filename string, contents string) []mr.KeyValue {
 	// function to detect word separators.
 	ff := func(r rune) bool { return !unicode.IsLetter(r) }

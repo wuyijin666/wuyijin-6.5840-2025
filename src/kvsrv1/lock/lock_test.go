@@ -11,13 +11,27 @@ import (
 	"6.5840/kvsrv1/rpc"
 	"6.5840/kvtest1"
 )
+// 核心思想：
+
+// 测试通过启动多个并发客户端，让它们都尝试获取同一个锁（key="l"），
+// 然后在持有锁的情况下，对另一个共享资源（key="l0"）进行读-改-写操作。
+// 如果锁实现了互斥，那么任何时候，最多只能有一个客户端成功读取到 "l0" 的旧值为空 ("")，然后写入自己的标识。
+// 如果有两个客户端同时读到空值并写入，就说明锁失效了。
+
+// 每个客户端都围绕一个共享锁 "l" 和一个共享变量 "l0" 工作。
+// 客户端循环执行：获取锁 -> 检查 l0 是否空 -> 写入自己ID到 l0 -> 休眠 -> 清空 l0 -> 释放锁。
 
 const (
-	NACQUIRE = 10
-	NCLNT    = 10
-	NSEC     = 2
+	NACQUIRE = 10  // 每个客户端尝试获取锁的次数（实际上代码里是无限循环）
+	NCLNT    = 10  // 并发测试的客户端数量
+	NSEC     = 2   // 测试运行的总时间（秒）
 )
 
+// oneClient 是单个测试客户端执行的函数
+// me: 客户端编号
+// ck: 该客户端使用的 Clerk (IKVClerk 接口)
+// done: 一个 channel，当测试结束时会被关闭，通知客户端停止
+// 返回值: kvtest.ClntRes，包含客户端执行的操作计数等信息（这里主要关心操作次数）
 func oneClient(t *testing.T, me int, ck kvtest.IKVClerk, done chan struct{}) kvtest.ClntRes {
 	lk := MakeLock(ck, "l")
 	ck.Put("l0", "", 0)
