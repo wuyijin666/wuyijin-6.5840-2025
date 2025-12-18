@@ -1,6 +1,7 @@
 1. lab1: 
 mapreudece
 官方的线性mapreduce通过官方测试脚本，无法生成mr-correct-wc.txt，那么将导致个人程序的测试无法与mr-correct-wc.txt进行比对，从而部分测试FATAL。 我通过主动让mrsequential.go生成mr-correct-wc.txt，依旧FATAL。 我怀疑是不是生成的是my-output.txt。 先搁置。
+
 2. lab2：
 Key/value server with reliable network (easy)
 
@@ -8,6 +9,10 @@ kolar2@Kolar:~/6.5840/src/kvsrv1$ go test -v -run Reliable
 go: downloading github.com/anishathalye/porcupine v1.0.3
 ../models1/kv.go:3:8: github.com/anishathalye/porcupine@v1.0.3: Get "https://proxy.golang.org/github.com/anishathalye/porcupine/@v/v1.0.3.zip": dial tcp 142.250.204.49:443: i/o timeout
 目前显示代理超时。。。。
+12.17解决 ：使用国内镜像源（推荐）
+bash
+# 设置GOPROXY为中国大陆友好的代理
+export GOPROXY=https://goproxy.cn,direct
 
 依赖关系: Part C 严重依赖于 Part A/B。lock.go 中的代码直接调用 lk.ck.Get() 和 lk.ck.Put()。如果 Clerk 的 Get/Put 方法不能在不可靠网络下可靠工作（例如，不能正确处理重试和 ErrMaybe），那么基于它构建的锁也必然会在网络问题下失效或行为异常。
 
@@ -17,6 +22,10 @@ go: downloading github.com/anishathalye/porcupine v1.0.3
 
 简单来说：先做好一个可靠的锤子和钉子（Part A/B），然后用这个锤子去造一个复杂的家具（Part C）。 Part C 的成功与否，直接反映了 Part A/B 的质量。
 
+go test -v -run Reliable
+go test -v
+全部PASS 
+
 3. lab3:
 raft1.server.go 
 这个实现采用了装饰器模式，rfsrv 包装了实际的 Raft 实现，提供了额外的功能如：
@@ -25,3 +34,10 @@ raft1.server.go
 快照管理
 错误处理
 测试支持
+
+12.17 
+lab 3 
+part A : leader election
+part B : log 
+part C : persistence  
+part D : log compaction(压缩)

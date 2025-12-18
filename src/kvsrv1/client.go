@@ -4,6 +4,8 @@ import (
 	"6.5840/kvsrv1/rpc"
 	"6.5840/kvtest1"
 	"6.5840/tester1"
+	"log"
+	"time"
 )
 
 
@@ -73,7 +75,7 @@ func (ck *Clerk) Put(key, value string, version rpc.Tversion) rpc.Err {
 	args := rpc.PutArgs{
 		Key: key,
 		Value: value,
-		Version: version
+		Version: version,
 	}
 	isFirstAttempt := true // 标记是否为首次尝试
 	for { 

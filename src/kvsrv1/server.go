@@ -46,7 +46,7 @@ func (kv *KVServer) Get(args *rpc.GetArgs, reply *rpc.GetReply) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 
-	if kvdata, ok := kv.data[args.Key] {
+	kvdata, ok := kv.data[args.Key] 
 		if ok {
 			reply.Value = kvdata.Value
 			reply.Version = kvdata.Version
@@ -56,7 +56,6 @@ func (kv *KVServer) Get(args *rpc.GetArgs, reply *rpc.GetReply) {
 			reply.Version = 0
 			reply.Err = rpc.ErrNoKey
 		}
-	} 
 }
 
 // Update the value for a key if args.Version matches the version of
