@@ -18,6 +18,13 @@ import (
 	"6.5840/raftapi"
 	"6.5840/tester1"
 )
+type State string
+const (
+	Leader State = "Leader"
+	Candidate State = "Candidate"
+	Follower State = "Follower"
+)
+
 
 
 // A Go object implementing a single Raft peer.
@@ -34,6 +41,7 @@ type Raft struct {
 
 	// 目前参照 figure 2 做实现，可能理解有误
 	// 对于raft这些state 确实目前很迷惑 
+	state State
 
 	// Persistent state on all servers
 	currentTerm int     // 服务器知道的最近任期，当服务器启动时初始化为0，单调递增
