@@ -6,6 +6,11 @@
 
 #### 整体架构
 ![raft架构](/raft架构.jpg)
+##### 节点状态
+raft算法中每个节点都有三种状态，分别是leader，follower，candidate，其互相转换规则如下图：
+![节点状态](/21.png)
+- 正常情况下，只有一个leader，其余都是follower，leader会持续运行，直到leader出现故障crush或网络出现波动，导致follower变成candidate竞选新leader
+- follower从不主动发起RPC请求，而只是响应leader或candidate的RPC，如果它在一段时间内（election timeout）没有收到任何RPC，它就成为candidate，并发起election（leader如果正常运转，会在空闲时间不断发送heartbeat消息保证它的权威）
 
 #### 核心架构与角色
 
