@@ -43,12 +43,12 @@ type Raft struct {
 	logs map[int]LogEntry	// 日志条目；每一条包含了状态机指令以及该条目被leader收到时的任期号
 
 	// Volatile（易失性）state on all servers
-	commitIndex int     // 已知被提价的最高日志条目索引号
+	commitIndex int     // 已知可以安全应用到状态机的最高日志索引
 	lastApplied int     // 应用到状态机的最高日志条目索引号
 
 	// Volatile state on leaders
-	nextIndex   map[int]int  // 针对所有服务器，内容是需要发送给每个服务器下一条日志条目索引号（初始化为leader的最高索引号+1）
-	matchIndex map[int]int   // 针对所有服务器，内容是已知要复制到每个服务器上的最高日志条目索引号（初始化为0，单调递增）
+	nextIndex   map[int]int  // 下次要发送给每个 Follower 的日志索引（初始化为leader的最高索引号+1）
+	matchIndex map[int]int   // 每个 Follower 已成功复制的最高日志索引（初始化为0，单调递增）
 
 	// 新添加这个字段用于跟踪上次收到领导者消息的时间 ？ 没想明白
 	lastReceivedHeartbeat time.Time
@@ -73,7 +73,7 @@ type LogEntry struct {
 	// 通常包含客户端请求的具体操作（如键值对存储的PUT/GET操作）；
 	// 当日志条目被提交后，这个命令会被应用到状态机在Raft算法中的作用：
 	Command interface{}   
-}
+} 
 
 // AppendEntries RPC，同时leader发起，用来复制日志条目或者发送心跳
 type AppendEntriesArgs struct { 
@@ -174,13 +174,7 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 }
 // example RequestVote RPC handler.
 // 处理候选者发来的投票请求 
-
-// figure2  ： 接收者实现
-// 如果参数中的term<接收者的currentTerm，返回false
-// 如果服务器中的votedFor是null或者参数中的candidateId，而且candidate的日志至少和接收者的日志一样新(up-to-date)，获得选票
-
-// (目前参照figure2做简要实现 可能不正确) 代码主要ai生成 审
-func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) bool {
+func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 	
@@ -190,7 +184,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) bool
 	// 如果参数中的任期小于当前任期，拒绝投票
 	if args.Term < rf.currentTerm {
 		reply.VoteGranted = false
-		return true
+		return 
 	}
 
 	// 如果参数中的任期大于当前任期，更新当前任期并转换为跟随者
@@ -211,8 +205,6 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) bool
 	} else {
 		reply.VoteGranted = false
 	}
-
-	return true
 }
 
 // example code to send a RequestVote RPC to a server.
@@ -254,14 +246,14 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 	ok := rf.peers[server].Call("Raft.RequestVote", args, reply)
 	return ok
 }
-func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) bool {
+func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 	reply.Term = rf.currentTerm
 
 	if rf.currentTerm > args.Term {
 		reply.Success = false
-		return true
+		return 
 	}
 
 	// 如果收到的任期比当前任期大，转换为跟随者
@@ -280,7 +272,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		existingEntry, exists := rf.logs[args.PrevLogIndex]
 		if !exists || existingEntry.Term != args.PrevLogTerm {
 			reply.Success = false
-			return true
+			return 
 		}
 	}
 
@@ -313,7 +305,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		lastNewIndex := args.PrevLogIndex + len(args.Entries)
 		rf.commitIndex = min(args.LeaderCommit, lastNewIndex)
 	}
-	return true
 }
 func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *AppendEntriesReply) bool {
 	ok := rf.peers[server].Call("Raft.AppendEntries", args, reply)
@@ -331,7 +322,7 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *Ap
 // 如果这个服务器不是领导者，则返回 false。否则立即开始达成一致并返回。
 // 不能保证这个命令会被提交到 Raft 日志中，因为领导者可能会故障或在选举中失败。
 // 即使 Raft 实例已经被关闭，这个函数也应该优雅地返回。
-//
+
 // the first return value is the index that the command will appear at
 // if it's ever committed. the second return value is the current
 // term. the third return value is true if this server believes it is
@@ -340,7 +331,7 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *Ap
 // 第二个返回值是当前任期。
 // 第三个返回值表示这个服务器是否认为自己是领导者。
 
-//  启动对新命令的共识(仅限领导者) - 客户端接口
+// 启动对新命令的共识(仅限领导者) - 客户端接口
 // 启动共识：让 Raft 集群就一个新命令达成一致
 // 仅限领导者：只有 Leader 节点才能接收这个请求，Follower 节点会拒绝
 func (rf *Raft) Start(command interface{}) (int, int, bool) {
@@ -367,9 +358,8 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		Term: term,
 		Command: command,
 	}
-	// 将新条目添加到日志中
+	// 将日志添加到当前节点
 	rf.logs[index] = newEntry
-	// 持久化更新后的日志
 	rf.persist()
 
 	return index, term, isLeader
@@ -403,7 +393,7 @@ func (rf *Raft) killed() bool {
 	return z == 1
 }
 
-// 定期检查选举超时 - 内部操作 
+// 定期检查选举超时  
 func (rf *Raft) ticker() {
 	// 初始化选举超时时间
 	rf.mu.Lock()
@@ -501,7 +491,7 @@ func (rf *Raft) ticker() {
 	}
 }
 
-// 发起投票请求
+// 候选者发起选举
 func (rf *Raft) requestVotes(currentTerm, lastLogIndex, lastLogTerm int) {
 	votesReceived := 1 // 投给自己的一票
 	peersCount := len(rf.peers)
